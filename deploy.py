@@ -2,7 +2,7 @@
 pair and starts the vLLM server (constitution spec sections 3.2, 4.2, 4.3).
 
 Usage:
-    python deploy.py model=<model identifier> hardware=<hardware identifier>
+    python deploy.py model=<model identifier> hardware=<hardware identifier> [port=<port>]
 """
 
 import subprocess
@@ -27,7 +27,7 @@ def load_deployment_configuration(model: str, hardware: str) -> dict:
     raise KeyError(f"unsupported pair: (model={model!r}, hardware={hardware!r})")
 
 
-def build_vllm_command(config: dict) -> list:
+def build_vllm_command(config: dict, port: int | None = None) -> list:
     """Build the vLLM server command line from a deployment configuration."""
     cmd = [
         sys.executable,
@@ -36,6 +36,8 @@ def build_vllm_command(config: dict) -> list:
         "serve",
         config["model"],
     ]
+    if port is not None:
+        cmd.extend(["--port", str(port)])
     for key, value in config["vllm_options"].items():
         flag = "--" + key.replace("_", "-")
         if isinstance(value, bool):
@@ -65,13 +67,24 @@ def main() -> int:
         print("error: both 'model' and 'hardware' must be specified", file=sys.stderr)
         return 2
 
+    port = None
+    if "port" in kwargs:
+        try:
+            port = int(kwargs["port"])
+        except ValueError:
+            print(
+                f"error: invalid port {kwargs['port']!r} (must be an integer)",
+                file=sys.stderr,
+            )
+            return 2
+
     try:
         config = load_deployment_configuration(model, hardware)
     except KeyError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    cmd = build_vllm_command(config)
+    cmd = build_vllm_command(config, port=port)
     print(
         f"starting deployment for (model={model}, hardware={hardware}): {' '.join(cmd)}"
     )

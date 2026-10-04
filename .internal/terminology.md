@@ -11,7 +11,7 @@
 | Supported pair | A model–hardware pair with a corresponding deployment configuration in the deployment-configuration library. |
 | Unsupported pair | A model–hardware pair without a corresponding deployment configuration in the deployment-configuration library. |
 | Deployment configuration library | The finite collection of deployment configurations for the supported model–hardware pairs. |
-| Pair slug | The model identifier and the hardware identifier joined with `-`, lowercased, with every non-alphanumeric character replaced by an underscore. Names the files belonging to a model–hardware pair in the deployment-configuration library. |
+| Pair slug | The model identifier and the hardware identifier joined with an underscore, lowercased, with every non-alphanumeric character replaced by an underscore. Names the files belonging to a model–hardware pair in the deployment-configuration library. |
 | Environment setup script | The optional `<pair slug>.sh` file in the deployment-configuration library. It prepares the execution environment for the pair's deployment (installs dependencies, exports required environment variables), is idempotent, and is invoked by the validation service with the target Python environment active before the deployment starts. |
 | Validation service | The independently managed service that invokes a deployment entry point and evaluates the resulting deployment against the acceptance criteria. |
 | Validation profile | The validation service configuration that specifies the acceptance criteria and validation settings used for a validation request. |

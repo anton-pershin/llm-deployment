@@ -1,0 +1,9 @@
+# Deployment configuration for the (Qwen/Qwen3-0.6B, huawei-cpu) pair.
+# Baseline deployment strategy: original model precision, no extra vLLM options.
+# The CPU device type is implied by the installed vLLM CPU build, so no
+# device-selection option is needed here.
+model: Qwen/Qwen3-0.6B
+hardware: huawei-cpu
+vllm_options:
+  gpu_memory_utilization: 0.5
+  max_model_len: 32768

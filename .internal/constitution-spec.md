@@ -16,7 +16,7 @@ LLM deployment is a routine task with the deployment efficiency affecting the us
 
 #### 1.4 Execution mode
 
-`manual`
+`autonomous`
 
 ### 2. Requirement analysis
 
@@ -31,8 +31,6 @@ None
 #### 2.3 Preferences
 
 **P1**. Support multiple huggingface models (by their id) and multiple hardware.
-
-**P2**. Follow the hydra-repo structure.
 
 ### 3. Acceptance criteria
 

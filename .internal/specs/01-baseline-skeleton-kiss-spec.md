@@ -10,7 +10,7 @@ python deploy.py model=<model identifier> hardware=<hardware identifier>
 
 through Hydra. It must read the two identifiers, resolve the deployment configuration for the model-hardware pair, and start the deployment server.
 
-**R2.** The deployment configuration library must live in `config/solutions/` as one Hydra configuration per supported model-hardware pair, each defining the complete vLLM options for that pair (constitution spec sections 4.2/4.3).
+**R2.** The deployment configuration library must live in `config/deployment_configurations/` as one Hydra configuration per supported model-hardware pair, each defining the complete vLLM options for that pair (constitution spec sections 4.2/4.3).
 
 **R3.** The first supported pair is `Qwen/Qwen3-0.6B` (HuggingFace id) with hardware `huawei-cpu` (this machine: 8-core CPU, 15 GB RAM, no GPU). Its deployment configuration is the baseline deployment strategy: original model precision, no extra vLLM options beyond what CPU deployment requires (CPU device selection is part of the pair's configuration, not an "extra option").
 
@@ -28,7 +28,7 @@ through Hydra. It must read the two identifiers, resolve the deployment configur
 
 **T2** (R4, B1/B2). Run `deploy.py` with an unsupported model and with an unsupported hardware identifier; assert a clear error message naming the unsupported pair and exit status != 0, with no server started. Automated.
 
-**T3** (R2). Assert every file in `config/solutions/` defines a model identifier, hardware identifier and vLLM options, and that the `(Qwen/Qwen3-0.6B, huawei-cpu)` entry exists. Automated.
+**T3** (R2). Assert every file in `config/deployment_configurations/` defines a model identifier, hardware identifier and vLLM options, and that the `(Qwen/Qwen3-0.6B, huawei-cpu)` entry exists. Automated.
 
 ### 3. Implementation plan
 
@@ -41,9 +41,10 @@ through Hydra. It must read the two identifiers, resolve the deployment configur
 ```mermaid
 flowchart TD
     CLI[deploy.py invocation: model=... hardware=...] --> LOOKUP[Deployment-configuration lookup via Hydra]
-    LIB[config/solutions/*.yaml] --> LOOKUP
-    LOOKUP -->|supported: Qwen/Qwen3-0.6B + huawei-cpu| START[Start vLLM server with recorded options]
+    LIB[config/deployment_configurations/*.yaml] --> LOOKUP
+    LOOKUP -->|supported: Qwen/Qwen3-0.6B + huawei-cpu| CONFIG[Selected deployment configuration]
     LOOKUP -->|unsupported pair| ERROR[Unsupported-pair error, non-zero exit]
+    CONFIG --> START[Start vLLM server with recorded options]
     START --> SERVE[OpenAI-compatible server: /health, /v1/models]
 ```
 
@@ -53,7 +54,7 @@ This follows the constitution spec section 5.1 design directly: the CLI, lookup,
 
 1. [ ] Write the tests
 2. [ ] Run all the tests and ensure that they fail
-3. [ ] Create the Hydra config structure: `config/config.yaml` with `model`/`hardware` groups and `config/solutions/qwen3_0_6b_huawei_cpu.yaml`
+3. [ ] Create the Hydra config structure: `config/deployment_configurations/qwen3_0_6b_huawei_cpu.yaml` (one deployment configuration per supported pair, each entry carrying its model and hardware identifiers plus the complete vLLM options)
 4. [ ] Implement `deploy.py`: pair lookup, unsupported-pair error, vLLM startup (CPU device), serving until terminated
 5. [ ] Create a project venv with vLLM (requires user permission for package installation)
 6. [ ] Run the automated tests (T2, T3) until green
@@ -64,8 +65,5 @@ This follows the constitution spec section 5.1 design directly: the CLI, lookup,
 | File | Action |
 |------|--------|
 | `deploy.py` | New: deployment entry point |
-| `config/config.yaml` | New: Hydra defaults with `model`/`hardware` groups |
-| `config/model/qwen3_0_6b.yaml` | New: model identifier config |
-| `config/hardware/huawei_cpu.yaml` | New: hardware identifier config |
-| `config/solutions/qwen3_0_6b_huawei_cpu.yaml` | New: baseline deployment configuration |
+| `config/deployment_configurations/qwen3_0_6b_huawei_cpu.yaml` | New: baseline deployment configuration (model and hardware identifiers + complete vLLM options) |
 | `tests/test_deploy.py` | New: T2, T3 |

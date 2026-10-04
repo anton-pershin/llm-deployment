@@ -239,9 +239,9 @@ Two approaches are considered for representing entries in the deployment-configu
    For example:
 
    ```text
-   config/solutions/model_a_gpu_a.yaml
-   config/solutions/model_a_gpu_b.yaml
-   config/solutions/model_b_gpu_a.yaml
+   config/deployment_configurations/model_a_gpu_a.yaml
+   config/deployment_configurations/model_a_gpu_b.yaml
+   config/deployment_configurations/model_b_gpu_a.yaml
    ```
 
    Advantages:
@@ -283,13 +283,12 @@ The project chooses Hydra configuration files. The supported deployment configur
 
 ```mermaid
 flowchart TD
-    CLI[Deployment CLI invocation] --> INPUT[Model identifier and hardware identifier]
-    INPUT --> IDENTIFY[Model and hardware identification]
-    IDENTIFY --> LOOKUP[Deployment-configuration lookup]
-    LIB[Hydra deployment-configuration library] --> LOOKUP
-    LOOKUP -->|Supported pair| CONFIG[Selected deployment configuration]
-    LOOKUP -->|Unsupported pair| ERROR[Unsupported-pair error]
-    CONFIG --> DEPLOY[Deployment server]
+    CLI["deploy.py invocation: model=... hardware=..."] --> LOOKUP["Deployment-configuration lookup via Hydra"]
+    LIB["config/deployment_configurations/*.yaml"] --> LOOKUP
+    LOOKUP -->|Supported pair| CONFIG["Selected deployment configuration"]
+    LOOKUP -->|Unsupported pair| ERROR["Unsupported-pair error, non-zero exit"]
+    CONFIG --> START["Start vLLM server with recorded options"]
+    START --> SERVE["OpenAI-compatible server: /health, /v1/models"]
 ```
 
 The deployment CLI receives a model identifier and hardware identifier through its invocation parameters. It identifies the requested model–hardware pair and looks up the corresponding deployment configuration in the central Hydra configuration library.

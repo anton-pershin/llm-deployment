@@ -54,7 +54,7 @@ This follows the constitution spec section 5.1 design directly: the CLI, lookup,
 
 1. [ ] Write the tests
 2. [ ] Run all the tests and ensure that they fail
-3. [ ] Create the Hydra config structure: `config/deployment_configurations/qwen3_0_6b_huawei_cpu.yaml` (one deployment configuration per supported pair, each entry carrying its model and hardware identifiers plus the complete vLLM options)
+3. [ ] Create the Hydra config structure: `config/deployment_configurations/qwen_qwen3_0_6b_huawei_cpu.yaml` (one deployment configuration per supported pair, each entry carrying its model and hardware identifiers plus the complete vLLM options)
 4. [ ] Implement `deploy.py`: pair lookup, unsupported-pair error, vLLM startup (CPU device), serving until terminated
 5. [ ] Create a project venv with vLLM (requires user permission for package installation)
 6. [ ] Run the automated tests (T2, T3) until green
@@ -65,5 +65,5 @@ This follows the constitution spec section 5.1 design directly: the CLI, lookup,
 | File | Action |
 |------|--------|
 | `deploy.py` | New: deployment entry point |
-| `config/deployment_configurations/qwen3_0_6b_huawei_cpu.yaml` | New: baseline deployment configuration (model and hardware identifiers + complete vLLM options) |
+| `config/deployment_configurations/qwen_qwen3_0_6b_huawei_cpu.yaml` | New: baseline deployment configuration (model and hardware identifiers + complete vLLM options) |
 | `tests/test_deploy.py` | New: T2, T3 |

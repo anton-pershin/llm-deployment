@@ -1,12 +1,14 @@
 # Deployment configuration for the (Qwen/Qwen3-0.6B, huawei-cpu) pair.
-# Baseline deployment strategy: original model precision, no extra vLLM options.
-# The CPU device type is implied by the installed vLLM CPU build, so no
-# device-selection option is needed here.
+#
+# Environment setup is handled by the setup script next to this file
+# (setup_qwen3_0_6b_huawei_cpu.sh): it installs the environment dependencies
+# and exports the required environment variables (e.g. LD_PRELOAD for the
+# vLLM CPU backend). This file only carries the vLLM configuration.
+#
+# Baseline deployment strategy: original model precision, no extra vLLM
+# options beyond what CPU deployment requires.
 model: Qwen/Qwen3-0.6B
 hardware: huawei-cpu
 vllm_options:
   gpu_memory_utilization: 0.5
   max_model_len: 32768
-environment:
-  LD_PRELOAD:
-    - "{sys_prefix}/lib/libiomp5.so"

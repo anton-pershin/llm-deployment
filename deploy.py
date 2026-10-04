@@ -5,7 +5,6 @@ Usage:
     python deploy.py model=<model identifier> hardware=<hardware identifier>
 """
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -47,27 +46,6 @@ def build_vllm_command(config: dict) -> list:
     return cmd
 
 
-def build_vllm_env(config: dict) -> dict:
-    """Build the environment for the vLLM subprocess from the configuration."""
-    env = {}
-    for key, value in config.get("environment", {}).items():
-        env[key] = resolve_env_values(value)
-    return env
-
-
-def resolve_env_values(value):
-    """Resolve supported placeholders in an environment variable value.
-
-    Supports lists (joined with ':') and the '{sys_prefix}' placeholder
-    (resolved to the current Python environment's prefix).
-    """
-    if isinstance(value, list):
-        return ":".join(resolve_env_values(item) for item in value)
-    if isinstance(value, str):
-        return value.replace("{sys_prefix}", sys.prefix)
-    return str(value)
-
-
 def main() -> int:
     args = sys.argv[1:]
     kwargs = {}
@@ -94,14 +72,11 @@ def main() -> int:
         return 1
 
     cmd = build_vllm_command(config)
-    env = build_vllm_env(config)
     print(
         f"starting deployment for (model={model}, hardware={hardware}): {' '.join(cmd)}"
     )
-    if env:
-        print(f"with environment: {env}")
 
-    result = subprocess.run(cmd, check=False, env={**os.environ, **env})
+    result = subprocess.run(cmd, check=False)
     return result.returncode
 
 

@@ -16,7 +16,7 @@ LLM deployment is a routine task with the deployment efficiency affecting the us
 
 #### 1.4 Execution mode
 
-`autonomous`
+`manual`
 
 ### 2. Requirement analysis
 

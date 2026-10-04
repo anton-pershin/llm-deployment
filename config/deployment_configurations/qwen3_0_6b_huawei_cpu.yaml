@@ -7,3 +7,6 @@ hardware: huawei-cpu
 vllm_options:
   gpu_memory_utilization: 0.5
   max_model_len: 32768
+environment:
+  LD_PRELOAD:
+    - "{sys_prefix}/lib/libiomp5.so"

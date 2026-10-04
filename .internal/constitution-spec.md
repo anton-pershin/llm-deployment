@@ -74,7 +74,9 @@ The validation service clones the specified `llm-deployment` repository, checks 
 
 #### 3.2 Solution invocation
 
-The validation service invokes one repository entry point through Hydra:
+The validation service first runs the environment setup script for the requested pair — `config/deployment_configurations/<pair slug>.sh`, derived by the pair-slug rule of section 4.3 — when the script exists, with the target Python environment active. The script prepares the execution environment for the pair (installs dependencies, exports required environment variables).
+
+Then the validation service invokes one repository entry point through Hydra:
 
 ```bash
 python deploy.py \
@@ -275,16 +277,7 @@ Two approaches are considered for representing entries in the deployment-configu
 
 The project chooses Hydra configuration files. The supported deployment configurations are primarily data, not separate algorithms, so they should remain separate from the common deployment code. Each configuration must identify its model–hardware pair and define the complete vLLM configuration required for that pair. The CLI must load the selected configuration through Hydra and use the common deployment algorithm to start vLLM.
 
-#### 4.4 Pair slug and environment setup script
-
-Every file belonging to one model–hardware pair is named by the pair slug: the model identifier and the hardware identifier, joined with `-`, lowercased, and with every non-alphanumeric character replaced by an underscore. For example, the pair (Qwen/Qwen3-0.6B, huawei-cpu) has the slug `qwen3_0_6b_huawei_cpu`.
-
-The deployment-configuration library stores, for each supported pair:
-
-- `<pair slug>.yaml` — the deployment configuration (the vLLM options for the pair).
-- an optional `<pair slug>.sh` — the environment setup script for the pair.
-
-The environment setup script prepares the execution environment for the pair's deployment: it installs the required dependencies (e.g. a CPU-specific vLLM build) and exports the required environment variables (e.g. `LD_PRELOAD` entries required by the vLLM CPU backend). The script is idempotent, is executed with the target Python environment active, and runs before the deployment starts. When the script is absent, no pair-specific environment preparation is required and the deployment starts directly. The setup script is invoked by the validation service (not by the deployment CLI): the service derives the script path from the pair slug and runs it in its sandbox before invoking the deployment entry point.
+Every file belonging to one model–hardware pair is named by the pair slug: the model identifier and the hardware identifier, joined with `-`, lowercased, and with every non-alphanumeric character replaced by an underscore. For example, the pair (Qwen/Qwen3-0.6B, huawei-cpu) has the slug `qwen3_0_6b_huawei_cpu`. For each supported pair, the library stores the deployment configuration `<pair slug>.yaml` and, when the pair requires environment preparation, an optional environment setup script `<pair slug>.sh` (idempotent, executed with the target Python environment active, invoked by the validation service before the deployment starts). The solution must ensure that whenever the environment setup script is absent, the deployment runs correctly without any pair-specific environment preparation.
 
 ### 5. Overall solution design
 
@@ -293,7 +286,7 @@ The environment setup script prepares the execution environment for the pair's d
 ```mermaid
 flowchart TD
     CLI["deploy.py invocation: model=... hardware=..."] --> LOOKUP["Deployment-configuration lookup via Hydra"]
-    LIB["config/deployment_configurations/*.yaml"] --> LOOKUP
+    LIB["config/deployment_configurations/ (pair slug).yaml, optional (pair slug).sh"] --> LOOKUP
     LOOKUP -->|Supported pair| CONFIG["Selected deployment configuration"]
     LOOKUP -->|Unsupported pair| ERROR["Unsupported-pair error, non-zero exit"]
     CONFIG --> START["Start vLLM server with recorded options"]
@@ -316,7 +309,7 @@ If the pair is absent from the library, the CLI reports an unsupported-pair erro
   - Starts vLLM using the selected configuration.
 
 - Hydra deployment-configuration library
-  - Stores one deployment configuration for each supported model–hardware pair, named by the pair slug (section 4.4).
+  - Stores one deployment configuration for each supported model–hardware pair, named by the pair slug (section 4.3).
   - Defines the vLLM options for each pair.
   - Optionally stores the pair's environment setup script (`<pair slug>.sh`), invoked by the validation service before the deployment starts.
 

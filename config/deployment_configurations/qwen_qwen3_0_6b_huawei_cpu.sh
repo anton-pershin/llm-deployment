@@ -9,7 +9,7 @@ PYTHON="${PYTHON:-python3}"
 # vLLM CPU wheel: the plain PyPI 'vllm' package is a GPU build; the CPU build
 # is distributed as a release wheel from the vLLM GitHub repository.
 pip install "https://github.com/vllm-project/vllm/releases/download/v0.30.0/vllm-0.30.0+cpu-cp38-abi3-manylinux_2_39_x86_64.whl"
-pip install pytest ruff
+pip install pyyaml pytest ruff
 
 # Intel OpenMP must be preloaded for the vLLM CPU backend; resolve the path
 # inside the active environment instead of hardcoding it.

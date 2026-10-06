@@ -6,8 +6,13 @@
 # host's sampler setting). This file only carries the vLLM configuration.
 #
 # Baseline deployment strategy: original model precision, no extra vLLM
-# options. On this GPU the vLLM defaults are the baseline; this entry is the
-# reference point for the further improvements of this pair.
+# options beyond what this pair requires. On this GPU the vLLM defaults are the
+# baseline, but the defaults do not fit: at the default max model length (40960)
+# the KV cache needs 5.62 GiB while only 4.54 GiB are available after the bf16
+# weights (16.4 GB) and the CUDA graphs are placed, and vLLM refuses to start.
+# max_model_len is therefore capped at 24576 (KV cache 3.38 GiB), which is far
+# beyond what this pair's evaluation needs (~1300 tokens per request).
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
-vllm_options: {}
+vllm_options:
+  max_model_len: 24576

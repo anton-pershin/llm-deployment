@@ -70,3 +70,62 @@ def test_t3_supported_pair_entry_exists():
     assert matching, (
         f"no deployment configuration for ({SUPPORTED_MODEL}, {SUPPORTED_HARDWARE})"
     )
+
+
+# --- Spec 02: the (Qwen/Qwen3-0.6B, rtx3090-oct-22) pair (T1, T2) ---
+
+RTX3090_MODEL = "Qwen/Qwen3-0.6B"
+RTX3090_HARDWARE = "rtx3090-oct-22"
+RTX3090_SLUG = "qwen_qwen3_0_6b_rtx3090_oct_22"
+
+
+def _pair_slug(model: str, hardware: str) -> str:
+    """Pair slug derived per the constitution spec section 4.3 rule."""
+    import re
+
+    return re.sub(r"[^a-z0-9]", "_", f"{model}_{hardware}".lower())
+
+
+def test_t1_slug_rule_reproduces_documented_example():
+    assert _pair_slug("Qwen/Qwen3-0.6B", "huawei-cpu") == "qwen_qwen3_0_6b_huawei_cpu"
+
+
+def test_t1_new_pair_entry_exists_under_the_slug_name():
+    path = DEPLOY_CONFIG_DIR / f"{_pair_slug(RTX3090_MODEL, RTX3090_HARDWARE)}.yaml"
+    assert path.is_file(), f"missing deployment configuration {path.name}"
+    entry = yaml.safe_load(path.read_text())
+    assert entry["model"] == RTX3090_MODEL
+    assert entry["hardware"] == RTX3090_HARDWARE
+
+
+def test_t1_new_pair_is_the_baseline_strategy():
+    path = DEPLOY_CONFIG_DIR / f"{_pair_slug(RTX3090_MODEL, RTX3090_HARDWARE)}.yaml"
+    entry = yaml.safe_load(path.read_text())
+    # R2: the baseline deployment strategy carries no extra deployment options.
+    assert entry["vllm_options"] == {}
+
+
+def test_t1_new_pair_setup_script_exists():
+    path = DEPLOY_CONFIG_DIR / f"{_pair_slug(RTX3090_MODEL, RTX3090_HARDWARE)}.sh"
+    assert path.is_file(), f"missing environment setup script {path.name}"
+
+
+def test_t2_unsupported_near_miss_hardware():
+    result = _run_deploy(f"model={RTX3090_MODEL}", "hardware=rtx3090-24gb")
+    assert result.returncode != 0
+    assert "rtx3090-24gb" in (result.stderr + result.stdout)
+    assert "unsupported" in (result.stderr + result.stdout).lower()
+
+
+def test_t2_unsupported_model_on_the_new_hardware():
+    result = _run_deploy(f"model={UNSUPPORTED_MODEL}", f"hardware={RTX3090_HARDWARE}")
+    assert result.returncode != 0
+    assert "unsupported" in (result.stderr + result.stdout).lower()
+
+
+def test_t2_cpu_entry_is_untouched():
+    path = DEPLOY_CONFIG_DIR / f"{_pair_slug(SUPPORTED_MODEL, SUPPORTED_HARDWARE)}.yaml"
+    entry = yaml.safe_load(path.read_text())
+    assert entry["model"] == SUPPORTED_MODEL
+    assert entry["hardware"] == SUPPORTED_HARDWARE
+    assert entry["vllm_options"], path

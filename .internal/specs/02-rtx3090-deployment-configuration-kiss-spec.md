@@ -26,7 +26,7 @@
 
 **T3** (R3, R4, B3). Manual, on `rtx3090-oct-22`: create a fresh Python environment on the host, run the pair's setup script with it active, run `python deploy.py model=Qwen/Qwen3-0.6B hardware=rtx3090-oct-22 port=<port>`, poll `GET /health` until HTTP 200, assert `GET /v1/models` lists `Qwen/Qwen3-0.6B`, send one chat completion and assert a non-empty completion, stop the deployment and remove the fresh environment. Marked manual: requires the GPU host; its outcome is recorded in the implementation summary.
 
-**Note on the validation service.** The validation service runs on this machine and its profile pins the validated pair to `huawei-cpu` with the peak-VRAM criterion out of scope because there is no GPU here. It therefore cannot deploy or measure this pair, and this spec claims no validation-service result; T3 on the target host is the evidence for this spec.
+**Note on the validation service.** The validation service is unavailable for now, so no validation request is issued for this spec. Even when it is available it runs on this machine, whose profile pins the validated pair to `huawei-cpu` with the peak-VRAM criterion out of scope because there is no GPU here — it cannot deploy or measure a GPU pair. This spec therefore claims no validation-service result: T3 on the target host is its evidence.
 
 ### 3. Implementation plan
 

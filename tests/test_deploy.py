@@ -1,5 +1,6 @@
 """Tests for the baseline skeleton KISS spec (01-baseline-skeleton-kiss-spec)."""
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -70,3 +71,70 @@ def test_t3_supported_pair_entry_exists():
     assert matching, (
         f"no deployment configuration for ({SUPPORTED_MODEL}, {SUPPORTED_HARDWARE})"
     )
+
+
+# --- T1/T2 of spec 03: the rtx3090-oct-22 deployment configurations (R1, R2, R3, R7, B1, B2) ---
+
+RTX3090_HARDWARE = "rtx3090-oct-22"
+RTX3090_8B_MODEL = "Qwen/Qwen3-8B"
+RTX3090_AWQ_MODEL = "Qwen/Qwen3-8B-AWQ"
+
+NEAR_MISS_HARDWARE = "rtx3090-24gb"
+UNSUPPORTED_QUANTIZED_MODEL = "Qwen/Qwen3-8B-FP8"
+
+
+def _pair_slug(model: str, hardware: str) -> str:
+    """The pair-slug rule of the constitution spec, section 4.3."""
+    return re.sub(r"[^a-z0-9]", "_", f"{model}_{hardware}".lower())
+
+
+def _entry_path(model: str, hardware: str) -> Path:
+    """The library file the pair-slug rule requires for this pair."""
+    return DEPLOY_CONFIG_DIR / f"{_pair_slug(model, hardware)}.yaml"
+
+
+def _entry(model: str, hardware: str) -> dict:
+    path = _entry_path(model, hardware)
+    assert path.is_file(), f"missing library entry {path.name}"
+    entry = yaml.safe_load(path.read_text())
+    assert entry.get("model") == model, path
+    assert entry.get("hardware") == hardware, path
+    return entry
+
+
+def test_t1_rtx3090_8b_baseline_entry():
+    entry = _entry(RTX3090_8B_MODEL, RTX3090_HARDWARE)
+    assert entry["vllm_options"] == {"max_model_len": 24576}, (
+        "the baseline entry carries exactly the option this pair needs to start"
+    )
+    assert _entry_path(RTX3090_8B_MODEL, RTX3090_HARDWARE).with_suffix(".sh").is_file()
+
+
+def test_t1_rtx3090_8b_awq_optimized_entry():
+    entry = _entry(RTX3090_AWQ_MODEL, RTX3090_HARDWARE)
+    assert entry["vllm_options"] == {
+        "max_model_len": 24576,
+        "gpu_memory_utilization": 0.6,
+    }, "the optimized entry caps the context and the GPU-memory utilization"
+    assert _entry_path(RTX3090_AWQ_MODEL, RTX3090_HARDWARE).with_suffix(".sh").is_file()
+
+
+def test_t2_near_miss_hardware_identifier_rejected():
+    result = _run_deploy(
+        f"model={RTX3090_8B_MODEL}", f"hardware={NEAR_MISS_HARDWARE}"
+    )
+    assert result.returncode != 0
+    assert "unsupported" in (result.stderr + result.stdout).lower()
+
+
+def test_t2_unsupported_quantized_model_rejected():
+    result = _run_deploy(
+        f"model={UNSUPPORTED_QUANTIZED_MODEL}", f"hardware={RTX3090_HARDWARE}"
+    )
+    assert result.returncode != 0
+    assert "unsupported" in (result.stderr + result.stdout).lower()
+
+
+def test_t2_cpu_entry_still_present_and_unchanged():
+    entry = _entry(SUPPORTED_MODEL, SUPPORTED_HARDWARE)
+    assert "vllm_options" in entry

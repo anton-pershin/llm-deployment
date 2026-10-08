@@ -1,0 +1,27 @@
+# Deployment configuration for the (Qwen/Qwen3-8B-AWQ, rtx3090-oct-22) pair.
+#
+# Environment setup is handled by the setup script next to this file
+# (qwen_qwen3_8b_awq_rtx3090_oct_22.sh): it installs the environment
+# dependencies and applies the host's sampler setting. This file only carries
+# the vLLM configuration.
+#
+# Optimization strategy: the same model served from its 4-bit AWQ release.
+# The bf16 deployment of this model on this GPU cannot meet the pair's
+# acceptance criteria: moving the bf16 weights (15.27 GiB) across this card's
+# 936 GB/s takes at least ~17.5 ms per output token (the median-TPOT criterion
+# requires < 0.01 s), and those weights alone exceed the whole peak-VRAM budget
+# (the criterion requires < 16). The 4-bit release halves the bytes per
+# parameter, which fixes both.
+#   max_model_len: 24576  - the served context; the evaluation needs ~1300
+#                           tokens per request, and the bf16 entry's default
+#                           (40960) does not fit this card at all.
+#   gpu_memory_utilization: 0.6 - caps the complete footprint (quantized
+#                           weights, KV cache, CUDA graphs) below the peak-VRAM
+#                           budget; it still leaves a KV cache of 6.52 GiB
+#                           (47,472 tokens), far above the evaluation's
+#                           concurrent working set.
+model: Qwen/Qwen3-8B-AWQ
+hardware: rtx3090-oct-22
+vllm_options:
+  max_model_len: 24576
+  gpu_memory_utilization: 0.6

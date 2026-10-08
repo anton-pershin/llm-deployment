@@ -1,0 +1,13 @@
+# Deployment configuration for the (Qwen/Qwen3-0.6B, rtx3090-oct-22) pair.
+#
+# Environment setup is handled by the setup script next to this file
+# (qwen_qwen3_0_6b_rtx3090_oct_22.sh): it installs the environment dependencies
+# and exports the required environment variables (the GPU vLLM stack and the
+# host's sampler setting). This file only carries the vLLM configuration.
+#
+# Baseline deployment strategy: original model precision, no extra vLLM
+# options. On this GPU the vLLM defaults are the baseline; this entry is the
+# reference point for the further improvements of this pair.
+model: Qwen/Qwen3-0.6B
+hardware: rtx3090-oct-22
+vllm_options: {}

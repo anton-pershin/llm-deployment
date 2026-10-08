@@ -1,18 +1,31 @@
 # Deployment configuration for the (Qwen/Qwen3-8B, rtx3090-oct-22) pair.
 #
 # Environment setup is handled by the setup script next to this file
-# (qwen_qwen3_8b_rtx3090_oct_22.sh): it installs the environment dependencies
-# and exports the required environment variables (the GPU vLLM stack and the
-# host's sampler setting). This file only carries the vLLM configuration.
+# (qwen_qwen3_8b_rtx3090_oct_22.sh): it installs the environment dependencies,
+# applies the host's sampler setting, and prepares the weights this deployment
+# serves. This file only carries the vLLM configuration.
 #
-# Baseline deployment strategy: original model precision, no extra vLLM
-# options beyond what this pair requires. On this GPU the vLLM defaults are the
-# baseline, but the defaults do not fit: at the default max model length (40960)
-# the KV cache needs 5.62 GiB while only 4.54 GiB are available after the bf16
-# weights (16.4 GB) and the CUDA graphs are placed, and vLLM refuses to start.
-# max_model_len is therefore capped at 24576 (KV cache 3.38 GiB), which is far
-# beyond what this pair's evaluation needs (~1300 tokens per request).
+# Deployment strategy: the model's 4-bit AWQ release, served under the model
+# identifier. The bf16 release cannot meet this pair's acceptance criteria on
+# this hardware: moving its weights (15.27 GiB) across this card's 936 GB/s
+# costs at least ~17.5 ms per output token (the median-TPOT criterion requires
+# < 0.01 s), and those weights alone already exceed the whole peak-VRAM budget
+# (the criterion requires < 16), before any KV cache is allocated. The 4-bit
+# release halves the bytes per parameter and satisfies both (measured: 8.03 ms
+# per output token, 14.4 GiB peak). The setup script prepares that release and
+# the model identifier resolves to it; the entry point and the library format
+# are unchanged (see the setup script for the mechanism).
+#   max_model_len: 24576 - the served context. The evaluation needs ~1300
+#                          tokens per request, and the vLLM default (40960)
+#                          does not fit this card at all: its KV cache would
+#                          need 5.62 GiB against 4.54 GiB available after the
+#                          bf16 weights and the CUDA graphs.
+#   gpu_memory_utilization: 0.6 - caps the complete footprint (weights, KV
+#                          cache, CUDA graphs) below the peak-VRAM budget. It
+#                          leaves a KV cache of 7.52 GiB (54,784 tokens), far
+#                          above the evaluation's concurrent working set.
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
 vllm_options:
   max_model_len: 24576
+  gpu_memory_utilization: 0.6

@@ -77,7 +77,7 @@ def test_t3_supported_pair_entry_exists():
 
 RTX3090_HARDWARE = "rtx3090-oct-22"
 RTX3090_8B_MODEL = "Qwen/Qwen3-8B"
-RTX3090_AWQ_MODEL = "Qwen/Qwen3-8B-AWQ"
+RTX3090_8B_WEIGHTS_REPO = "Qwen/Qwen3-8B-AWQ"
 
 NEAR_MISS_HARDWARE = "rtx3090-24gb"
 UNSUPPORTED_QUANTIZED_MODEL = "Qwen/Qwen3-8B-FP8"
@@ -102,21 +102,17 @@ def _entry(model: str, hardware: str) -> dict:
     return entry
 
 
-def test_t1_rtx3090_8b_baseline_entry():
+def test_t1_rtx3090_8b_entry():
     entry = _entry(RTX3090_8B_MODEL, RTX3090_HARDWARE)
-    assert entry["vllm_options"] == {"max_model_len": 24576}, (
-        "the baseline entry carries exactly the option this pair needs to start"
-    )
-    assert _entry_path(RTX3090_8B_MODEL, RTX3090_HARDWARE).with_suffix(".sh").is_file()
-
-
-def test_t1_rtx3090_8b_awq_optimized_entry():
-    entry = _entry(RTX3090_AWQ_MODEL, RTX3090_HARDWARE)
     assert entry["vllm_options"] == {
         "max_model_len": 24576,
         "gpu_memory_utilization": 0.6,
-    }, "the optimized entry caps the context and the GPU-memory utilization"
-    assert _entry_path(RTX3090_AWQ_MODEL, RTX3090_HARDWARE).with_suffix(".sh").is_file()
+    }, "the entry caps the context and the GPU-memory utilization"
+    setup_script = _entry_path(RTX3090_8B_MODEL, RTX3090_HARDWARE).with_suffix(".sh")
+    assert setup_script.is_file()
+    assert RTX3090_8B_WEIGHTS_REPO in setup_script.read_text(), (
+        "the setup script prepares the 4-bit release this deployment serves"
+    )
 
 
 def test_t2_near_miss_hardware_identifier_rejected():
@@ -127,12 +123,11 @@ def test_t2_near_miss_hardware_identifier_rejected():
     assert "unsupported" in (result.stderr + result.stdout).lower()
 
 
-def test_t2_unsupported_quantized_model_rejected():
-    result = _run_deploy(
-        f"model={UNSUPPORTED_QUANTIZED_MODEL}", f"hardware={RTX3090_HARDWARE}"
-    )
-    assert result.returncode != 0
-    assert "unsupported" in (result.stderr + result.stdout).lower()
+def test_t2_unsupported_model_identifier_rejected():
+    for model in (UNSUPPORTED_QUANTIZED_MODEL, RTX3090_8B_WEIGHTS_REPO):
+        result = _run_deploy(f"model={model}", f"hardware={RTX3090_HARDWARE}")
+        assert result.returncode != 0, model
+        assert "unsupported" in (result.stderr + result.stdout).lower(), model
 
 
 def test_t2_cpu_entry_still_present_and_unchanged():

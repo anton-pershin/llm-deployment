@@ -3,3 +3,9 @@
 *.swo
 __pycache__/
 *.pyc
+
+# The deployment of the (Qwen/Qwen3-8B, rtx3090-oct-22) pair materialises its
+# model identifier as a local directory next to this file (see that pair's
+# setup script); it appears while the deployment runs and is not repository
+# content.
+Qwen/

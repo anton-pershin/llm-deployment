@@ -69,10 +69,13 @@ Thresholds: VM1 < 0.5 s; VM2 < 1 s; VM3 < 0.01 s; VM4 < 0.05 s; VM5 < 16 GiB; VM
 |---|---|---|---|---|---|---|---|---|
 | AWQ baseline | `beff9e6d7a1237d8a97e2d0769f2587ede243539` | 0.131888927499 | 0.1521738266 | 0.0077648363458 | 0.00779361894631 | 14.484375 | 5.53893289046 | accepted, accepted, accepted, accepted, accepted, valid |
 | autoround_gptq | `005429d7f711ab470882defd3dad14cbb9049e47` | 0.133820807 | 0.15271554385 | 0.00771498426428 | 0.00773558405514 | 13.48046875 | 3.52748513074 | accepted, accepted, accepted, accepted, accepted, valid |
+| gptq8_fp16_exllama | `44e45149d4d709e0f42fdb56372ab5dc8f7d2f0f` | not computed | not computed | not computed | not computed | not computed | not computed | invalid, invalid, invalid, invalid, invalid, invalid |
+| gptq8_fp16_exllama_context12k | `f64f47900a2b4a9cc9138ea0691c66cdc42425fa` | 0.129560895502 | 0.135961884749 | 0.0111200560225 | 0.011298220094 | 13.28515625 | -0.369665406728 | accepted, accepted, valid, accepted, accepted, accepted |
 | gptq8_graphs_greedy | `6a900077430be905396ce5c874c018e59b939e0d` | 0.144666290498 | 0.162857120951 | 0.0114742774338 | 0.0115082322061 | 13.318359375 | -0.568607792289 | accepted, accepted, valid, accepted, accepted, accepted |
 | gptq_group32 | `ed2374135aabf3221d5e8aae7748284e0599e79d` | 0.1347429545 | 0.153888357099 | 0.00816946497644 | 0.00819867325582 | 13.462890625 | 5.1417975115 | accepted, accepted, accepted, accepted, accepted, valid |
 | hybrid_qkv_greedy | `35e1ea6c8c4a14fead1cf2b7cbb49d56032f6e21` | 0.13933111 | 0.156431204949 | 0.00917970103577 | 0.00921419639411 | 13.30859375 | 2.9910525441 | accepted, accepted, accepted, accepted, accepted, valid |
 | junhowie_gptq | `f1b6e08f2b9bb4c8b838abd791528e6562212a35` | 0.1314588845 | 0.1519529414 | 0.00780644529128 | 0.00784203755741 | 13.48046875 | 11.2889046659 | accepted, accepted, accepted, accepted, accepted, valid |
+| mixed_gptq8_attention4_mlp | `278c4d7841f6ead40b51f1d55c47145dfab789ff` | 0.135482330001 | 0.155750825302 | 0.00878145468208 | 0.00881228258878 | 13.318359375 | 5.05126297487 | accepted, accepted, accepted, accepted, accepted, valid |
 | redhat_w4a16 | `0a1ed1a639ee14af64b3fdee47828dfdc18da4b5` | 0.143440119499 | 0.173514966749 | 0.00785141784927 | 0.00793787063068 | 13.46484375 | 8.00587870391 | accepted, accepted, accepted, accepted, accepted, valid |
 
 The four-bit checkpoint comparisons retain their model generation defaults. `gptq8_graphs_greedy`, `hybrid_qkv_greedy`, and the Exllama candidate explicitly set default temperature to zero. These are joint precision/decoding experiments, not weights-only comparisons. Callers can override the default.
@@ -82,3 +85,5 @@ The Q/K/V hybrid restores original BF16 attention projections and input-layernor
 The first Exllama run is invalid: its 24576-token context needs 3.38 GiB of KV cache, but only 3.33 GiB is available. The response’s generic GPU error does not mean the GPU is absent; the startup log gives the actual failure. A corrected 12288-token candidate is prepared.
 
 Per-candidate requests, official responses, setup/deployment logs, and predictions are retained at `/home/ubuntu/accuracy_recovery_20261009/<candidate>/` on the GPU host. Local evidence is under `/home/tony/.hermes/cache/scratch/llm_accuracy_evidence/`. Baseline values are also retained in `/home/tony/.hermes/cache/scratch/llm_accuracy_baseline.json`.
+
+Mixed GPTQ8 attention/GPTQ4 MLP is measurable but loses 5.05126297487% accuracy; it is not the retained improvement. The corrected Exllama GPTQ8 run passes AC6 at -0.369665406728%, but its 0.0111200560225 s median TPOT rejects AC3. The remaining diagnostic candidates are AutoRound with a greedy default, complete BF16 attention with AWQ MLP, FP16 Marlin GPTQ8, and GPTQ8 with a pinned Qwen3-0.6B draft. These candidates are not certified until their full responses exist.

@@ -7,8 +7,8 @@ set -euo pipefail
 
 # The model identifier this pair is deployed under, and the weights it serves.
 MODEL_IDENTIFIER="Qwen/Qwen3-8B"
-WEIGHTS_REPO="Qwen/Qwen3-8B-AWQ"
-WEIGHTS_REVISION="4da05a8edb55c6046cce958586c33b61da07bb79"
+WEIGHTS_REPO="RedHatAI/Qwen3-8B-quantized.w4a16"
+WEIGHTS_REVISION="32527053243a382bc56e941c964fc516a5014d39"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).
@@ -46,19 +46,15 @@ PYEOF
 # it before the deployment.
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 
-# The deployment serves the model's 4-bit AWQ release. The bf16 release cannot
-# meet this pair's acceptance criteria on this hardware: moving its weights
-# (15.27 GiB) across this card's 936 GB/s costs at least ~17.5 ms per output
-# token (the median-TPOT criterion requires < 0.01 s), and those weights alone
-# are past the whole peak-VRAM budget (the criterion requires < 16 GB), before
-# any KV cache is allocated. The 4-bit release halves the bytes per parameter
-# and satisfies both.
+# Serve a weight-only 4-bit GPTQ checkpoint in compressed-tensors format.
+# The original model's embeddings and lm_head stay at bfloat16 precision.
+# This candidate changes the quantization algorithm and activation precision,
+# not the model architecture, tokenizer, or generation defaults.
 #
-# The entry point and the library format stay unchanged: vLLM resolves a model
-# identifier as a local path when such a path exists, and the deployment runs
-# with this repository root as its working directory, so materialising the
-# identifier as a local directory that holds the AWQ release is enough for the
-# deployment to serve those 4-bit weights under the model identifier.
+# vLLM resolves the model identifier as a local path when it exists. The
+# deployment runs from the repository root, so the symlink below keeps the
+# public pair identity and common entry point unchanged. Pin the revision for
+# repeatable setup; do not modify files in the shared HuggingFace cache.
 SNAPSHOT="$(python3 -c "
 from huggingface_hub import snapshot_download
 print(snapshot_download('${WEIGHTS_REPO}', revision='${WEIGHTS_REVISION}'))

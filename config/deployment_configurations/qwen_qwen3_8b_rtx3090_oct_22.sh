@@ -7,8 +7,8 @@ set -euo pipefail
 
 # The model identifier this pair is deployed under, and the weights it serves.
 MODEL_IDENTIFIER="Qwen/Qwen3-8B"
-WEIGHTS_REPO="kaitchup/Qwen3-8B-autoround-4bit-gptq"
-WEIGHTS_REVISION="b7e026b92d0019c20745eae7f843fac019c9c6e0"
+WEIGHTS_REPO="JunHowie/Qwen3-8B-GPTQ-Int8"
+WEIGHTS_REVISION="e131f54dea2ba1f99bbee218f75548ed00646cb9"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).
@@ -46,9 +46,9 @@ PYEOF
 # it before the deployment.
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 
-# Serve an AutoRound-optimized weight-only 4-bit GPTQ checkpoint, group128.
-# This source uses float16 activations and preserves an unquantized lm_head.
-# The architecture and generation defaults match the original model.
+# Serve a symmetric weight-only 8-bit GPTQ checkpoint, group128.
+# Keep bfloat16 activation precision; the YAML specializes small-batch graphs
+# and sets an explicit greedy generation default to limit sampling divergence.
 #
 # vLLM resolves the model identifier as a local path when it exists. The
 # deployment runs from the repository root, so the symlink below keeps the

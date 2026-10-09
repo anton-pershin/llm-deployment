@@ -77,7 +77,7 @@ def test_t3_supported_pair_entry_exists():
 
 RTX3090_HARDWARE = "rtx3090-oct-22"
 RTX3090_8B_MODEL = "Qwen/Qwen3-8B"
-RTX3090_8B_WEIGHTS_REPO = "kaitchup/Qwen3-8B-autoround-4bit-gptq"
+RTX3090_8B_WEIGHTS_REPO = "JunHowie/Qwen3-8B-GPTQ-Int8"
 
 NEAR_MISS_HARDWARE = "rtx3090-24gb"
 UNSUPPORTED_QUANTIZED_MODEL = "Qwen/Qwen3-8B-FP8"
@@ -107,7 +107,12 @@ def test_t1_rtx3090_8b_entry():
     assert entry["vllm_options"] == {
         "max_model_len": 24576,
         "gpu_memory_utilization": 0.6,
-    }, "the entry caps the context and the GPU-memory utilization"
+        "dtype": "bfloat16",
+        "linear_backend": "marlin",
+        "max_num_seqs": 8,
+        "compilation_config": '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[1,2,3,4,5,6,7,8],"compile_sizes":[1,2,3,4,5,6,7,8]}',
+        "override_generation_config": '{"temperature":0.0}',
+    }, "the entry records explicit small-batch graph and generation settings"
     setup_script = _entry_path(RTX3090_8B_MODEL, RTX3090_HARDWARE).with_suffix(".sh")
     assert setup_script.is_file()
     assert RTX3090_8B_WEIGHTS_REPO in setup_script.read_text(), (
@@ -116,9 +121,7 @@ def test_t1_rtx3090_8b_entry():
 
 
 def test_t2_near_miss_hardware_identifier_rejected():
-    result = _run_deploy(
-        f"model={RTX3090_8B_MODEL}", f"hardware={NEAR_MISS_HARDWARE}"
-    )
+    result = _run_deploy(f"model={RTX3090_8B_MODEL}", f"hardware={NEAR_MISS_HARDWARE}")
     assert result.returncode != 0
     assert "unsupported" in (result.stderr + result.stdout).lower()
 

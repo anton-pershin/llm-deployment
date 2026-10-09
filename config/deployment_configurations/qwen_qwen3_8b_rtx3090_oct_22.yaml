@@ -1,6 +1,6 @@
 # Qwen3-8B on rtx3090-oct-22: weight-only 8-bit GPTQ diagnostic candidate.
 # The setup script pins JunHowie/Qwen3-8B-GPTQ-Int8.
-# Keep float16 activations so Ampere can use Marlin atomic-add reductions.
+# Use float16 activations required by the explicit Exllama GPTQ kernel.
 # The explicit greedy default can be overridden by each caller.
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
@@ -8,7 +8,7 @@ vllm_options:
   max_model_len: 24576
   gpu_memory_utilization: 0.6
   dtype: float16
-  linear_backend: marlin
+  linear_backend: exllama
   max_num_seqs: 8
   compilation_config: '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[1,2,3,4,5,6,7,8],"compile_sizes":[1,2,3,4,5,6,7,8]}'
   override_generation_config: '{"temperature":0.0}'

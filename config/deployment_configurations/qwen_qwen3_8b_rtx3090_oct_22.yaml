@@ -28,4 +28,5 @@ model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
 vllm_options:
   max_model_len: 24576
-  gpu_memory_utilization: 0.6
+  gpu_memory_utilization: 0.92
+  override_generation_config: '{"temperature": 0.0}'

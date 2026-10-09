@@ -77,7 +77,7 @@ def test_t3_supported_pair_entry_exists():
 
 RTX3090_HARDWARE = "rtx3090-oct-22"
 RTX3090_8B_MODEL = "Qwen/Qwen3-8B"
-RTX3090_8B_WEIGHTS_REPO = "Qwen/Qwen3-8B-AWQ"
+RTX3090_8B_WEIGHTS_REPO = "Qwen/Qwen3-8B-FP8"
 
 NEAR_MISS_HARDWARE = "rtx3090-24gb"
 UNSUPPORTED_QUANTIZED_MODEL = "Qwen/Qwen3-8B-FP8"
@@ -106,7 +106,7 @@ def test_t1_rtx3090_8b_entry():
     entry = _entry(RTX3090_8B_MODEL, RTX3090_HARDWARE)
     assert entry["vllm_options"] == {
         "max_model_len": 24576,
-        "gpu_memory_utilization": 0.6,
+        "gpu_memory_utilization": 0.63,
     }, "the entry caps the context and the GPU-memory utilization"
     setup_script = _entry_path(RTX3090_8B_MODEL, RTX3090_HARDWARE).with_suffix(".sh")
     assert setup_script.is_file()

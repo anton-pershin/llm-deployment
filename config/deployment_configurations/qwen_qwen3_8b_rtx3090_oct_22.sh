@@ -7,7 +7,7 @@ set -euo pipefail
 
 # The model identifier this pair is deployed under, and the weights it serves.
 MODEL_IDENTIFIER="Qwen/Qwen3-8B"
-WEIGHTS_REPO="Qwen/Qwen3-8B-AWQ"
+WEIGHTS_REPO="Qwen/Qwen3-8B-FP8"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).

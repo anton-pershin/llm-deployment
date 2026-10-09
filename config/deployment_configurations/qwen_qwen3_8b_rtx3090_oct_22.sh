@@ -7,8 +7,8 @@ set -euo pipefail
 
 # The model identifier this pair is deployed under, and the weights it serves.
 MODEL_IDENTIFIER="Qwen/Qwen3-8B"
-WEIGHTS_REPO="JunHowie/Qwen3-8B-GPTQ-Int4"
-WEIGHTS_REVISION="f08c8ea5f60e1fe34ff4a45edb58e8ca958560c3"
+WEIGHTS_REPO="ziyan1119/Qwen3-8B-250424-gptq-32g_new"
+WEIGHTS_REVISION="fc113a47e0383a6cbe0cffbf798e2bab7a71b673"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).
@@ -46,10 +46,11 @@ PYEOF
 # it before the deployment.
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 
-# Serve a symmetric weight-only 4-bit GPTQ checkpoint (group size 128).
-# The original model's embeddings and lm_head stay at bfloat16 precision.
-# This candidate changes the quantization algorithm and activation precision,
-# not the model architecture, tokenizer, or generation defaults.
+# Serve a symmetric weight-only 4-bit GPTQ checkpoint (group size 32).
+# Runtime activations use bfloat16. The publisher stored unquantized floating
+# tensors as float16 and did not document an exact upstream weight revision.
+# Treat this checkpoint as a diagnostic candidate until provenance is settled.
+# The architecture and generation defaults match the original model.
 #
 # vLLM resolves the model identifier as a local path when it exists. The
 # deployment runs from the repository root, so the symlink below keeps the

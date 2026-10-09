@@ -7,10 +7,10 @@ set -euo pipefail
 
 # The model identifier this pair is deployed under, and the weights it serves.
 MODEL_IDENTIFIER="Qwen/Qwen3-8B"
-WEIGHTS_REPO="Qwen/Qwen3-8B-AWQ"
-WEIGHTS_REVISION="4da05a8edb55c6046cce958586c33b61da07bb79"
-ORIGINAL_REVISION="b968826d9c46dd6066d109eabc6255188de91218"
-ATTENTION_PROJECTIONS="qkv"
+WEIGHTS_REPO="kaitchup/Qwen3-8B-autoround-4bit-gptq"
+WEIGHTS_REVISION="b7e026b92d0019c20745eae7f843fac019c9c6e0"
+ATTENTION_REPO="JunHowie/Qwen3-8B-GPTQ-Int8"
+ATTENTION_REVISION="e131f54dea2ba1f99bbee218f75548ed00646cb9"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).
@@ -48,9 +48,9 @@ PYEOF
 # it before the deployment.
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 
-# Restore original Q/K/V weights and their input norm, while retaining the
-# calibrated AWQ MLP tensors and post-attention norm. No training or evaluation
-# data is used. The helper publishes the prepared checkpoint atomically.
+# Combine unchanged GPTQ attention8 and MLP4 tensors from pinned donors.
+# Floating tensors and tokenizer metadata come from the eight-bit checkpoint.
+# No retraining, requantization, or evaluation data is used. Publication is atomic.
 # vLLM still resolves the unchanged public identifier as a local path.
 SNAPSHOT="$(python3 -c "
 from huggingface_hub import snapshot_download
@@ -60,19 +60,18 @@ test -f "${SNAPSHOT}/config.json" || {
   echo "error: incomplete snapshot for ${WEIGHTS_REPO} at ${SNAPSHOT}" >&2
   exit 1
 }
-ORIGINAL="$(python3 -c "
+ATTENTION="$(python3 -c "
 from huggingface_hub import snapshot_download
-print(snapshot_download('${MODEL_IDENTIFIER}', revision='${ORIGINAL_REVISION}'))
+print(snapshot_download('${ATTENTION_REPO}', revision='${ATTENTION_REVISION}'))
 ")"
-test -f "${ORIGINAL}/config.json" || {
-  echo "error: incomplete original snapshot at ${ORIGINAL}" >&2
+test -f "${ATTENTION}/config.json" || {
+  echo "error: incomplete attention snapshot at ${ATTENTION}" >&2
   exit 1
 }
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PREPARED_DIR="${HF_HOME:-${HOME}/.cache/huggingface}/llm-deployment/qwen3-8b-${WEIGHTS_REVISION}-${ORIGINAL_REVISION}-${ATTENTION_PROJECTIONS}-v1"
+PREPARED_DIR="${HF_HOME:-${HOME}/.cache/huggingface}/llm-deployment/qwen3-8b-gptq-${WEIGHTS_REVISION}-${ATTENTION_REVISION}-v1"
 PREPARED="$(python3 "${SCRIPT_DIR}/qwen_qwen3_8b_rtx3090_oct_22.py" \
-  "${SNAPSHOT}" "${ORIGINAL}" "${PREPARED_DIR}" \
-  --attention-projections "${ATTENTION_PROJECTIONS}")"
+  "${SNAPSHOT}" "${ATTENTION}" "${PREPARED_DIR}" --format gptq)"
 mkdir -p "$(dirname "${MODEL_IDENTIFIER}")"
 ln -sfnT "${PREPARED}" "${MODEL_IDENTIFIER}"
 

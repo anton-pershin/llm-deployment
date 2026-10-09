@@ -79,12 +79,13 @@ def test_setup_uses_pinned_snapshot_and_replaces_identifier(tmp_path):
     assert result.returncode == 0, result.stderr
     call = (tmp_path / "download-call.txt").read_text()
     assert len(re.findall(r"revision=['\"][0-9a-f]{40}['\"]", call)) == 2, call
-    assert "Qwen/Qwen3-8B-AWQ" in call
-    assert "4da05a8edb55c6046cce958586c33b61da07bb79" in call
-    assert "b968826d9c46dd6066d109eabc6255188de91218" in call
+    assert "kaitchup/Qwen3-8B-autoround-4bit-gptq" in call
+    assert "b7e026b92d0019c20745eae7f843fac019c9c6e0" in call
+    assert "JunHowie/Qwen3-8B-GPTQ-Int8" in call
+    assert "e131f54dea2ba1f99bbee218f75548ed00646cb9" in call
     helper_call = (tmp_path / "helper-call.txt").read_text()
     assert "qwen_qwen3_8b_rtx3090_oct_22.py" in helper_call
-    assert "--attention-projections qkv" in helper_call
+    assert "--format gptq" in helper_call
     identifier = tmp_path / "Qwen" / "Qwen3-8B"
     assert identifier.is_symlink()
     assert identifier.resolve() == Path(env["STUB_PREPARED"])

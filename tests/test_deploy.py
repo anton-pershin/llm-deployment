@@ -77,7 +77,7 @@ def test_t3_supported_pair_entry_exists():
 
 RTX3090_HARDWARE = "rtx3090-oct-22"
 RTX3090_8B_MODEL = "Qwen/Qwen3-8B"
-RTX3090_8B_WEIGHTS_REPO = "Qwen/Qwen3-8B-AWQ"
+RTX3090_8B_WEIGHTS_REPO = "kaitchup/Qwen3-8B-autoround-4bit-gptq"
 
 NEAR_MISS_HARDWARE = "rtx3090-24gb"
 UNSUPPORTED_QUANTIZED_MODEL = "Qwen/Qwen3-8B-FP8"

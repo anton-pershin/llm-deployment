@@ -1,31 +1,15 @@
-# Deployment configuration for the (Qwen/Qwen3-8B, rtx3090-oct-22) pair.
-#
-# Environment setup is handled by the setup script next to this file
-# (qwen_qwen3_8b_rtx3090_oct_22.sh): it installs the environment dependencies,
-# applies the host's sampler setting, and prepares the weights this deployment
-# serves. This file only carries the vLLM configuration.
-#
-# Deployment strategy: the model's 4-bit AWQ release, served under the model
-# identifier. The bf16 release cannot meet this pair's acceptance criteria on
-# this hardware: moving its weights (15.27 GiB) across this card's 936 GB/s
-# costs at least ~17.5 ms per output token (the median-TPOT criterion requires
-# < 0.01 s), and those weights alone already exceed the whole peak-VRAM budget
-# (the criterion requires < 16), before any KV cache is allocated. The 4-bit
-# release halves the bytes per parameter and satisfies both (measured: 8.03 ms
-# per output token, 14.4 GiB peak). The setup script prepares that release and
-# the model identifier resolves to it; the entry point and the library format
-# are unchanged (see the setup script for the mechanism).
-#   max_model_len: 24576 - the served context. The evaluation needs ~1300
-#                          tokens per request, and the vLLM default (40960)
-#                          does not fit this card at all: its KV cache would
-#                          need 5.62 GiB against 4.54 GiB available after the
-#                          bf16 weights and the CUDA graphs.
-#   gpu_memory_utilization: 0.6 - caps the complete footprint (weights, KV
-#                          cache, CUDA graphs) below the peak-VRAM budget. It
-#                          leaves a KV cache of 7.52 GiB (54,784 tokens), far
-#                          above the evaluation's concurrent working set.
+# Qwen3-8B GPTQ8 target with a pinned original Qwen3-0.6B draft.
+# Standard target rejection verifies every draft proposal. No synthetic acceptance.
+# Limit context to 8192 to reserve KV memory for both target and draft.
+# Greedy is an explicit default, not an override of caller sampling parameters.
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
 vllm_options:
-  max_model_len: 24576
+  max_model_len: 8192
   gpu_memory_utilization: 0.6
+  dtype: bfloat16
+  linear_backend: marlin
+  max_num_seqs: 8
+  compilation_config: '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[1,2,3,4,6,8,12,16,24],"compile_sizes":[3,24]}'
+  speculative_config: '{"method":"draft_model","model":"Qwen/Qwen3-0.6B","revision":"c1899de289a04d12100db370d81485cdf75e47ca","num_speculative_tokens":2,"draft_tensor_parallel_size":1,"quantization":null,"draft_sample_method":"greedy","rejection_sample_method":"standard","enforce_eager":false}'
+  override_generation_config: '{"temperature":0.0}'

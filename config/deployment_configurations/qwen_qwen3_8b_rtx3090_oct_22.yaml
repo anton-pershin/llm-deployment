@@ -2,9 +2,10 @@
 # The setup script pins kaitchup/Qwen3-8B-autoround-4bit-gptq.
 # This source uses float16 activations and group size 128.
 # Keep the public model identifier, context cap, and memory cap unchanged.
-# Generation defaults are those of the original model.
+# Default temperature is zero; each caller can override it.
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
 vllm_options:
   max_model_len: 24576
   gpu_memory_utilization: 0.6
+  override_generation_config: '{"temperature":0.0}'

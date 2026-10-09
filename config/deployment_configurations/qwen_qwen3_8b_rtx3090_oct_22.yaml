@@ -5,7 +5,7 @@
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
 vllm_options:
-  max_model_len: 24576
+  max_model_len: 12288
   gpu_memory_utilization: 0.6
   dtype: float16
   linear_backend: marlin

@@ -24,8 +24,19 @@
 #                          cache, CUDA graphs) below the peak-VRAM budget. It
 #                          leaves a KV cache of 7.52 GiB (54,784 tokens), far
 #                          above the evaluation's concurrent working set.
+#   override_generation_config: {"temperature": 0.0} - pins greedy decoding.
+#                          The evaluation sends no sampling parameters, so vLLM
+#                          applies the model's generation config (temperature
+#                          0.6, top_p 0.95, top_k 20) to every request. Sampling
+#                          costs the 4-bit deployment extraction completeness:
+#                          with the model's config the measured accuracy loss is
+#                          5.54 % (recall 0.642 against the bf16 baseline's
+#                          0.696). Greedy decoding takes the most probable token
+#                          at every step and does not amplify the small logit
+#                          changes that 4-bit weights cause.
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
 vllm_options:
   max_model_len: 24576
   gpu_memory_utilization: 0.6
+  override_generation_config: '{"temperature": 0.0}'

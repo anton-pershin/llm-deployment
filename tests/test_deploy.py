@@ -107,7 +107,8 @@ def test_t1_rtx3090_8b_entry():
     assert entry["vllm_options"] == {
         "max_model_len": 24576,
         "gpu_memory_utilization": 0.6,
-    }, "the entry caps the context and the GPU-memory utilization"
+        "override_generation_config": '{"temperature": 0.0}',
+    }, "the entry caps the context, the GPU-memory utilization and pins greedy decoding"
     setup_script = _entry_path(RTX3090_8B_MODEL, RTX3090_HARDWARE).with_suffix(".sh")
     assert setup_script.is_file()
     assert RTX3090_8B_WEIGHTS_REPO in setup_script.read_text(), (

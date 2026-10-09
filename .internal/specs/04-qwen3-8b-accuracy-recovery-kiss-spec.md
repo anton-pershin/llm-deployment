@@ -32,6 +32,8 @@ T5 (R3, R4). Automated: prepare tiny real safetensors snapshots for multiple lay
 
 T6 (R3, R4). Automated: use real two-layer safetensors to prepare a mixed GPTQ checkpoint. Assert that packed attention tensors match the eight-bit donor, MLP tensors match the four-bit donor, floating tensors come from the eight-bit donor, and dynamic metadata selects eight bits only for fused attention modules. Test incompatible quantization settings, missing projections, source immutability, idempotence, and failed-write atomicity.
 
+T7 (R1, R3, R4). Automated: assert the selected GPTQ8 target and exact pinned draft revision, standard rejection, two speculative tokens, separate draft quantization, 8192-token context, compatible compile sizes [3,24], and caller-overridable greedy defaults. Execute the single-target setup offline, including repeated symlink replacement and failed-download preservation.
+
 ### 3. Implementation plan
 
 #### 3.1 Implementation repos
@@ -79,3 +81,9 @@ The current merged entry uses official AWQ group size 128 and float16. The prior
 | `.gitignore` | Modified if needed: ignore prepared checkpoint files |
 | `.internal/validation-results.md` | Modified: record baseline, candidates, and final full validation |
 | `.internal/specs/04-qwen3-8b-accuracy-recovery-kiss-spec.md` | New: requirements, tests, plan, and measured decision |
+
+#### 3.5 Final selection
+
+Full validation of `1f1cae42efe2641ae56b14ccec033bae315a4110` accepted all six criteria. Select pinned JunHowie GPTQ8 with BF16 activations and the pinned original Qwen3-0.6B draft. Standard target rejection verifies all proposals. The draft and target need an 8192-token context to fit their combined KV cache within the memory budget. Two draft tokens require compile sizes [3,24], because size 1 is padded to 3. VM6 was 0.636433348929%, VM3 was 0.00987536141826 s, and VM5 was 13.21875 GiB. These results certify that exact candidate only. Validate the final integrated commit again and obtain independent review before delivery.
+
+The final implementation contains the single-target setup and speculative YAML. Remove the unused hybrid preparation helper and its tests from the final tree; preserve these experiments and their validation results in git history and the result document. T5 and T6 were experiment tests and are not part of the selected runtime.

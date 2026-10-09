@@ -8,6 +8,7 @@ set -euo pipefail
 # The model identifier this pair is deployed under, and the weights it serves.
 MODEL_IDENTIFIER="Qwen/Qwen3-8B"
 WEIGHTS_REPO="Qwen/Qwen3-8B-AWQ"
+WEIGHTS_REVISION="4da05a8edb55c6046cce958586c33b61da07bb79"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).
@@ -60,13 +61,13 @@ export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 # deployment to serve those 4-bit weights under the model identifier.
 SNAPSHOT="$(python3 -c "
 from huggingface_hub import snapshot_download
-print(snapshot_download('${WEIGHTS_REPO}'))
+print(snapshot_download('${WEIGHTS_REPO}', revision='${WEIGHTS_REVISION}'))
 ")"
 test -f "${SNAPSHOT}/config.json" || {
   echo "error: incomplete snapshot for ${WEIGHTS_REPO} at ${SNAPSHOT}" >&2
   exit 1
 }
 mkdir -p "$(dirname "${MODEL_IDENTIFIER}")"
-ln -sfn "${SNAPSHOT}" "${MODEL_IDENTIFIER}"
+ln -sfnT "${SNAPSHOT}" "${MODEL_IDENTIFIER}"
 
 echo "environment ready: VLLM_USE_FLASHINFER_SAMPLER=${VLLM_USE_FLASHINFER_SAMPLER} (sitecustomize.py in ${SITE_PACKAGES}); ${MODEL_IDENTIFIER} -> ${SNAPSHOT}"

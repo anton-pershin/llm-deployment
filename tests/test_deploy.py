@@ -110,7 +110,7 @@ def test_t1_rtx3090_8b_entry():
         "dtype": "bfloat16",
         "linear_backend": "marlin",
         "max_num_seqs": 8,
-        "compilation_config": '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[1,2,3,4,6,8,12,16,24],"compile_sizes":[1,3,24]}',
+        "compilation_config": '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[1,2,3,4,6,8,12,16,24],"compile_sizes":[3,24]}',
         "speculative_config": '{"method":"draft_model","model":"Qwen/Qwen3-0.6B","revision":"c1899de289a04d12100db370d81485cdf75e47ca","num_speculative_tokens":2,"draft_tensor_parallel_size":1,"quantization":null,"draft_sample_method":"greedy","rejection_sample_method":"standard","enforce_eager":false}',
         "override_generation_config": '{"temperature":0.0}',
     }, "the entry records explicit small-batch graph and generation settings"

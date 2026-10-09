@@ -266,6 +266,272 @@ def test_all_restores_output_projection(sources):
     ]
 
 
+@pytest.fixture
+def gptq_sources(tmp_path):
+    donors, data = [], []
+    for bits in (4, 8):
+        donor = tmp_path / f"gptq{bits}"
+        donor.mkdir()
+        config = {
+            "model_type": "qwen3",
+            "architectures": ["Qwen3ForCausalLM"],
+            "num_hidden_layers": 2,
+            "hidden_size": 128,
+            "intermediate_size": 256,
+            "num_attention_heads": 2,
+            "num_key_value_heads": 1,
+            "head_dim": 64,
+            "vocab_size": 16,
+            "torch_dtype": "bfloat16",
+            "quantization_config": {
+                "quant_method": "gptq",
+                "bits": bits,
+                "group_size": 128,
+                "sym": True,
+                "desc_act": False,
+                "checkpoint_format": "gptq",
+                "lm_head": False,
+            },
+        }
+        (donor / "config.json").write_text(json.dumps(config))
+        for filename in ("tokenizer.json", "generation_config.json"):
+            (donor / filename).write_text(json.dumps({"donor": bits}))
+        weights = {}
+        for layer in range(2):
+            prefix = f"model.layers.{layer}."
+            for area, projections in (
+                ("self_attn", ("q", "k", "v", "o")),
+                ("mlp", ("gate", "up", "down")),
+            ):
+                for projection in projections:
+                    rows = (
+                        64
+                        if projection in ("k", "v")
+                        else (256 if projection in ("gate", "up") else 128)
+                    )
+                    columns = 256 if projection == "down" else 128
+                    name = prefix + f"{area}.{projection}_proj."
+                    weights[name + "qweight"] = torch.full(
+                        (columns * bits // 32, rows), 12345 + bits, dtype=torch.int32
+                    )
+                    weights[name + "qzeros"] = torch.full(
+                        (columns // 128, rows * bits // 32), bits, dtype=torch.int32
+                    )
+                    weights[name + "scales"] = torch.full(
+                        (columns // 128, rows), bits / 10, dtype=torch.bfloat16
+                    )
+                    weights[name + "g_idx"] = (
+                        torch.arange(columns, dtype=torch.int32) // 128
+                    )
+            for norm in (
+                "input_layernorm",
+                "post_attention_layernorm",
+                "self_attn.q_norm",
+                "self_attn.k_norm",
+            ):
+                weights[prefix + norm + ".weight"] = torch.full(
+                    (64 if "self_attn" in norm else 128,), bits, dtype=torch.bfloat16
+                )
+        for name, shape in (
+            ("model.embed_tokens.weight", (16, 128)),
+            ("lm_head.weight", (16, 128)),
+            ("model.norm.weight", (128,)),
+        ):
+            weights[name] = torch.full(shape, bits, dtype=torch.bfloat16)
+        index = {}
+        for shard in range(2):
+            filename = f"model-{shard}.safetensors"
+            selected = {
+                k: v
+                for k, v in weights.items()
+                if (f"layers.{shard}." in k or (shard == 0 and "layers." not in k))
+            }
+            save_file(selected, donor / filename)
+            index.update(dict.fromkeys(selected, filename))
+        (donor / "model.safetensors.index.json").write_text(
+            json.dumps({"weight_map": index})
+        )
+        donors.append(donor)
+        data.append(weights)
+    return *donors, tmp_path / "output", *data
+
+
+@pytest.mark.parametrize("indexed", [True, False])
+def test_gptq_splices_packed_tensors_and_fused_metadata(gptq_sources, indexed):
+    mlp4, attention8, output, four, eight = gptq_sources
+    if not indexed:
+        for donor in (mlp4, attention8):
+            (donor / "model.safetensors.index.json").unlink()
+    before = fingerprint(mlp4), fingerprint(attention8)
+    assert helper().prepare_gptq(mlp4, attention8, output) == output
+    actual = load_file(output / "model.safetensors")
+    assert actual.keys() == eight.keys()
+    for name, tensor in actual.items():
+        expected = four[name] if ".mlp." in name else eight[name]
+        assert tensor.dtype == expected.dtype
+        assert torch.equal(tensor, expected), name
+    config = json.loads((output / "config.json").read_text())
+    assert config["quantization_config"] == {
+        "quant_method": "gptq",
+        "checkpoint_format": "gptq",
+        "bits": 4,
+        "group_size": 128,
+        "sym": True,
+        "desc_act": False,
+        "lm_head": False,
+        "dynamic": {
+            r"+:^model\.layers\.\d+\.self_attn\.(?:qkv_proj|o_proj)$": {
+                "bits": 8,
+                "group_size": 128,
+                "sym": True,
+                "desc_act": False,
+            }
+        },
+    }
+    for filename in ("tokenizer.json", "generation_config.json"):
+        assert (output / filename).read_bytes() == (attention8 / filename).read_bytes()
+    assert not (output / "model.safetensors.index.json").exists()
+    assert (fingerprint(mlp4), fingerprint(attention8)) == before
+
+
+@pytest.mark.parametrize("donor", [0, 1])
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("quant_method", "awq"),
+        ("bits", 3),
+        ("group_size", 64),
+        ("sym", False),
+        ("desc_act", True),
+        ("checkpoint_format", "gptq_v2"),
+        ("lm_head", True),
+        ("dynamic", {".*": {"bits": 2}}),
+    ],
+)
+def test_gptq_rejects_invalid_quantization(gptq_sources, donor, key, value):
+    sources = gptq_sources[:2]
+    output = gptq_sources[2]
+    path = sources[donor] / "config.json"
+    config = json.loads(path.read_text())
+    config["quantization_config"][key] = value
+    path.write_text(json.dumps(config))
+    before = tuple(fingerprint(p) for p in sources)
+    with pytest.raises(ValueError):
+        helper().prepare_gptq(*sources, output)
+    assert not output.exists()
+    assert tuple(fingerprint(p) for p in sources) == before
+
+
+@pytest.mark.parametrize("donor", [0, 1])
+@pytest.mark.parametrize(
+    "fault", ["architecture", "layout", "missing_projection", "shape"]
+)
+def test_gptq_rejects_invalid_architecture_or_projection(gptq_sources, donor, fault):
+    sources, output = gptq_sources[:2], gptq_sources[2]
+    if fault in ("architecture", "layout"):
+        path = sources[donor] / "config.json"
+        config = json.loads(path.read_text())
+        config["model_type" if fault == "architecture" else "hidden_size"] = (
+            "llama" if fault == "architecture" else 256
+        )
+        path.write_text(json.dumps(config))
+    else:
+        path = sources[donor] / "model-0.safetensors"
+        weights = load_file(path)
+        name = (
+            "model.layers.0."
+            + ("mlp.gate_proj." if donor == 0 else "self_attn.o_proj.")
+            + "qweight"
+        )
+        if fault == "missing_projection":
+            del weights[name]
+            index_path = sources[donor] / "model.safetensors.index.json"
+            index = json.loads(index_path.read_text())
+            del index["weight_map"][name]
+            index_path.write_text(json.dumps(index))
+        else:
+            weights[name] = torch.ones(1, dtype=torch.int32)
+        save_file(weights, path)
+    with pytest.raises(ValueError):
+        helper().prepare_gptq(*sources, output)
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("fault", ["missing_norm", "dense_projection", "invalid_g_idx"])
+def test_gptq_rejects_incomplete_or_ambiguous_weights(gptq_sources, fault):
+    mlp4, attention8, output, _, _ = gptq_sources
+    path = attention8 / "model-0.safetensors"
+    weights = load_file(path)
+    if fault == "missing_norm":
+        del weights["model.layers.0.post_attention_layernorm.weight"]
+        (attention8 / "model.safetensors.index.json").unlink()
+    elif fault == "dense_projection":
+        weights["model.layers.0.self_attn.q_proj.weight"] = torch.ones(128, 128)
+        (attention8 / "model.safetensors.index.json").unlink()
+    else:
+        weights["model.layers.0.self_attn.q_proj.g_idx"] += 1
+    save_file(weights, path)
+    with pytest.raises(ValueError):
+        helper().prepare_gptq(mlp4, attention8, output)
+    assert not output.exists()
+
+
+def test_gptq_cache_and_atomic_failure(gptq_sources, monkeypatch):
+    mlp4, attention8, output, _, _ = gptq_sources
+    module = helper()
+    before = fingerprint(mlp4), fingerprint(attention8)
+    real_save = module.save_file
+
+    def broken_save(weights, path, **kwargs):
+        Path(path).write_bytes(b"partial")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(module, "save_file", broken_save)
+    with pytest.raises(OSError, match="disk full"):
+        module.prepare_gptq(mlp4, attention8, output)
+    assert not output.exists()
+    assert not list(output.parent.glob(".output-*"))
+    monkeypatch.setattr(module, "save_file", real_save)
+    module.prepare_gptq(mlp4, attention8, output)
+    built = fingerprint(output)
+    assert module.prepare_gptq(mlp4, attention8, output) == output
+    assert fingerprint(output) == built
+    assert (fingerprint(mlp4), fingerprint(attention8)) == before
+    (output / "model.safetensors").unlink()
+    with pytest.raises(ValueError):
+        module.prepare_gptq(mlp4, attention8, output)
+
+
+@pytest.mark.parametrize("donor", [0, 1])
+def test_gptq_output_outside_donors(gptq_sources, donor):
+    mlp4, attention8, _, _, _ = gptq_sources
+    source = (mlp4, attention8)[donor]
+    before = fingerprint(source)
+    with pytest.raises(ValueError):
+        helper().prepare_gptq(mlp4, attention8, source / "output")
+    assert fingerprint(source) == before
+
+
+def test_gptq_cli(gptq_sources):
+    mlp4, attention8, output, _, _ = gptq_sources
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            str(mlp4),
+            str(attention8),
+            str(output),
+            "--format",
+            "gptq",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (output / "model.safetensors").is_file()
+
+
 def test_qkv_restores_attention_preserving_calibrated_mlp(sources):
     awq, original, output, packed, dense = sources
     helper().prepare(awq, original, output)

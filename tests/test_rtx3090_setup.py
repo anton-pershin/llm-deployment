@@ -41,7 +41,7 @@ def _prepare(tmp_path):
         "if 'site.getsitepackages' in code:\n"
         "    print(os.environ['STUB_SITE'])\n"
         "elif 'snapshot_download' in code:\n"
-        "    pathlib.Path(os.environ['STUB_CALL']).write_text(code)\n"
+        "    with pathlib.Path(os.environ['STUB_CALL']).open('a') as log: log.write(code)\n"
         "    if os.environ.get('STUB_FAIL') == '1':\n"
         "        sys.exit(1)\n"
         "    print(os.environ['STUB_SNAPSHOT'])\n"
@@ -78,7 +78,13 @@ def test_setup_uses_pinned_snapshot_and_replaces_identifier(tmp_path):
     result = _run(tmp_path, env)
     assert result.returncode == 0, result.stderr
     call = (tmp_path / "download-call.txt").read_text()
-    assert re.search(r"revision=['\"][0-9a-f]{40}['\"]", call), call
+    assert len(re.findall(r"revision=['\"][0-9a-f]{40}['\"]", call)) == 2, call
+    assert "Qwen/Qwen3-8B-AWQ" in call
+    assert "4da05a8edb55c6046cce958586c33b61da07bb79" in call
+    assert "b968826d9c46dd6066d109eabc6255188de91218" in call
+    helper_call = (tmp_path / "helper-call.txt").read_text()
+    assert "qwen_qwen3_8b_rtx3090_oct_22.py" in helper_call
+    assert "--attention-projections qkv" in helper_call
     identifier = tmp_path / "Qwen" / "Qwen3-8B"
     assert identifier.is_symlink()
     assert identifier.resolve() == Path(env["STUB_PREPARED"])
@@ -101,7 +107,7 @@ def test_setup_uses_pinned_snapshot_and_replaces_identifier(tmp_path):
     )
 
 
-@pytest.mark.parametrize("failure", ["download", "missing_config"])
+@pytest.mark.parametrize("failure", ["download", "missing_config", "helper"])
 def test_failed_snapshot_preparation_preserves_identifier(tmp_path, failure):
     env, snapshot, _ = _prepare(tmp_path)
     old_snapshot = tmp_path / "old-snapshot"
@@ -111,6 +117,8 @@ def test_failed_snapshot_preparation_preserves_identifier(tmp_path, failure):
     identifier.symlink_to(old_snapshot, target_is_directory=True)
     if failure == "download":
         env["STUB_FAIL"] = "1"
+    elif failure == "helper":
+        env["STUB_HELPER_FAIL"] = "1"
     else:
         (snapshot / "config.json").unlink()
     result = _run(tmp_path, env)

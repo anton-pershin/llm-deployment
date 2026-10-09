@@ -6,7 +6,7 @@ R1. Improve the deployment for (`Qwen/Qwen3-8B`, `rtx3090-oct-22`). Keep its ide
 
 R2. Reduce VM6 against the validation profile's original-precision baseline. The target is AC6 accepted together with AC1-AC5 in full validation. Do not change the constitution, validator, baseline, datasets, prompts, scorer, or thresholds. If the target cannot be reached, record the measured frontier and retain only a measured improvement that preserves AC1-AC5. Do not claim that untested configurations are impossible.
 
-R3. Test alternative quantized releases of the same original model, starting with weight-only GPTQ or compressed-tensors 4-bit checkpoints. Compare quantization method, group size, runtime precision, tokenizer, chat template, and generation settings. Do not substitute a distilled or fine-tuned model. Do not use validation cases to calibrate weights or create case-specific behavior. A change to default decoding must be explicit in the YAML and apply to all requests unless the caller overrides it.
+R3. Test alternative quantized releases of the same original model, starting with weight-only GPTQ or compressed-tensors 4-bit checkpoints. Also test a deterministic hybrid of the pinned official AWQ and original bf16 checkpoints if published four-bit releases do not recover accuracy. Restore attention projections and their associated input-layernorm together: AWQ rescales that norm when it quantizes Q/K/V. Keep the calibrated MLP tensors and post-attention norm together. A hybrid must not retrain weights, use validation data, mutate input snapshots, or change architecture. Compare quantization method, group size, runtime precision, tokenizer, chat template, and generation settings. Do not substitute a distilled or fine-tuned model. Do not use validation cases to calibrate weights or create case-specific behavior. A change to default decoding must be explicit in the YAML and apply to all requests unless the caller overrides it.
 
 R4. The setup script must prepare a reproducible checkpoint, pinned by a full HuggingFace revision hash. Use the existing model-identifier materialization mechanism. Setup must be idempotent and fail before updating the identifier if the downloaded snapshot is incomplete. Keep the host sampler setting effective in the deployment's Python process. The script must run with the target environment active.
 
@@ -27,6 +27,8 @@ T2 (R4, B1, B2). Automated: run the real setup script with isolated offline pip/
 T3 (R4, B3). Automated: simulate download failure and a snapshot missing config.json. Assert non-zero status and that an existing identifier remains unchanged.
 
 T4 (R2, R3, R5). Integration: full validation of the unchanged merged commit establishes the baseline. Full validation of each retained candidate records VM1-VM6 and statuses. Read engine logs while deployment is active to confirm the checkpoint and kernel. A final candidate must preserve AC1-AC5 and improve AC6. If no candidate does this, make no deployment change and record the measured conclusion.
+
+T5 (R3, R4). Automated: prepare tiny real safetensors snapshots for multiple layers. Assert that selected attention weights and input norms equal original tensors, selected packed tensors are absent, non-selected AWQ tensors and the calibrated MLP norm are unchanged, exclusions match the restored projections, sources are unchanged, repeated preparation is idempotent, and a preparation failure does not publish a partial checkpoint. Test both Q/K/V restoration and complete attention restoration.
 
 ### 3. Implementation plan
 
@@ -70,5 +72,8 @@ The current merged entry uses official AWQ group size 128 and float16. The prior
 | `config/deployment_configurations/qwen_qwen3_8b_rtx3090_oct_22.yaml` | Modified: record selected serving options and measured rationale |
 | `tests/test_deploy.py` | Modified: assert the selected pair configuration |
 | `tests/test_rtx3090_setup.py` | New: offline execution tests for setup behavior |
+| `tests/test_rtx3090_hybrid.py` | New if needed: real safetensors tests for hybrid preparation |
+| `config/deployment_configurations/qwen_qwen3_8b_rtx3090_oct_22.py` | New if needed: deterministic offline hybrid preparation |
+| `.gitignore` | Modified if needed: ignore prepared checkpoint files |
 | `.internal/validation-results.md` | Modified: record baseline, candidates, and final full validation |
 | `.internal/specs/04-qwen3-8b-accuracy-recovery-kiss-spec.md` | New: requirements, tests, plan, and measured decision |

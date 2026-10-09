@@ -84,7 +84,7 @@ def test_setup_uses_pinned_snapshot_and_replaces_identifier(tmp_path):
     assert "b968826d9c46dd6066d109eabc6255188de91218" in call
     helper_call = (tmp_path / "helper-call.txt").read_text()
     assert "qwen_qwen3_8b_rtx3090_oct_22.py" in helper_call
-    assert "--attention-projections qkv" in helper_call
+    assert "--attention-projections all" in helper_call
     identifier = tmp_path / "Qwen" / "Qwen3-8B"
     assert identifier.is_symlink()
     assert identifier.resolve() == Path(env["STUB_PREPARED"])

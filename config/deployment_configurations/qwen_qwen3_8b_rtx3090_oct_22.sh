@@ -10,7 +10,7 @@ MODEL_IDENTIFIER="Qwen/Qwen3-8B"
 WEIGHTS_REPO="Qwen/Qwen3-8B-AWQ"
 WEIGHTS_REVISION="4da05a8edb55c6046cce958586c33b61da07bb79"
 ORIGINAL_REVISION="b968826d9c46dd6066d109eabc6255188de91218"
-ATTENTION_PROJECTIONS="qkv"
+ATTENTION_PROJECTIONS="all"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).
@@ -48,7 +48,7 @@ PYEOF
 # it before the deployment.
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 
-# Restore original Q/K/V weights and their input norm, while retaining the
+# Restore original Q/K/V/O weights and their input norm, while retaining the
 # calibrated AWQ MLP tensors and post-attention norm. No training or evaluation
 # data is used. The helper publishes the prepared checkpoint atomically.
 # vLLM still resolves the unchanged public identifier as a local path.

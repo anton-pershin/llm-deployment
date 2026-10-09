@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -388,6 +389,19 @@ def test_gptq_splices_packed_tensors_and_fused_metadata(gptq_sources, indexed):
             }
         },
     }
+    quantization = config["quantization_config"]
+    pattern, override = next(iter(quantization["dynamic"].items()))
+    assert pattern.startswith("+:")
+    for layer in range(config["num_hidden_layers"]):
+        for area, module, bits in (
+            ("self_attn", "qkv_proj", 8),
+            ("self_attn", "o_proj", 8),
+            ("mlp", "gate_up_proj", 4),
+            ("mlp", "down_proj", 4),
+        ):
+            prefix = f"model.layers.{layer}.{area}.{module}"
+            selected = override if re.match(pattern[2:], prefix) else quantization
+            assert selected["bits"] == bits, prefix
     for filename in ("tokenizer.json", "generation_config.json"):
         assert (output / filename).read_bytes() == (attention8 / filename).read_bytes()
     assert not (output / "model.safetensors.index.json").exists()

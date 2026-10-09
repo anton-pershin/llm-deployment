@@ -105,7 +105,7 @@ def _entry(model: str, hardware: str) -> dict:
 def test_t1_rtx3090_8b_entry():
     entry = _entry(RTX3090_8B_MODEL, RTX3090_HARDWARE)
     assert entry["vllm_options"] == {
-        "max_model_len": 12288,
+        "max_model_len": 8192,
         "gpu_memory_utilization": 0.6,
         "dtype": "bfloat16",
         "linear_backend": "marlin",

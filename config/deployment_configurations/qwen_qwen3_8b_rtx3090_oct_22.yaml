@@ -1,11 +1,11 @@
 # Qwen3-8B GPTQ8 target with a pinned original Qwen3-0.6B draft.
 # Standard target rejection verifies every draft proposal. No synthetic acceptance.
-# Limit context to 12288 to reserve KV memory for both target and draft.
+# Limit context to 8192 to reserve KV memory for both target and draft.
 # Greedy is an explicit default, not an override of caller sampling parameters.
 model: Qwen/Qwen3-8B
 hardware: rtx3090-oct-22
 vllm_options:
-  max_model_len: 12288
+  max_model_len: 8192
   gpu_memory_utilization: 0.6
   dtype: bfloat16
   linear_backend: marlin

@@ -1,5 +1,5 @@
-# Qwen3-8B on rtx3090-oct-22: weight-only 4-bit compressed-tensors candidate.
-# The setup script pins and prepares RedHatAI/Qwen3-8B-quantized.w4a16.
+# Qwen3-8B on rtx3090-oct-22: symmetric weight-only 4-bit GPTQ candidate.
+# The setup script pins and prepares JunHowie/Qwen3-8B-GPTQ-Int4.
 # Activations, embeddings, and lm_head retain bfloat16 precision.
 # Keep the public model identifier, context cap, and memory cap unchanged.
 # Generation defaults are those of the original model.

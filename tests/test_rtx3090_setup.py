@@ -29,6 +29,14 @@ def _prepare(tmp_path):
     python.write_text(
         f"#!{sys.executable}\n"
         "import os, pathlib, sys\n"
+        "if sys.argv[1].endswith('.py'):\n"
+        "    pathlib.Path(os.environ['STUB_HELPER_CALL']).write_text(' '.join(sys.argv[1:]))\n"
+        "    if os.environ.get('STUB_HELPER_FAIL') == '1': sys.exit(1)\n"
+        "    path = pathlib.Path(os.environ['STUB_PREPARED'])\n"
+        "    path.mkdir(exist_ok=True)\n"
+        "    (path / 'config.json').write_text('{}')\n"
+        "    print(path)\n"
+        "    sys.exit(0)\n"
         "code = sys.argv[2]\n"
         "if 'site.getsitepackages' in code:\n"
         "    print(os.environ['STUB_SITE'])\n"
@@ -47,6 +55,8 @@ def _prepare(tmp_path):
         "STUB_SITE": str(site_packages),
         "STUB_SNAPSHOT": str(snapshot),
         "STUB_CALL": str(tmp_path / "download-call.txt"),
+        "STUB_PREPARED": str(tmp_path / "prepared"),
+        "STUB_HELPER_CALL": str(tmp_path / "helper-call.txt"),
     }
     return env, snapshot, site_packages
 
@@ -71,7 +81,7 @@ def test_setup_uses_pinned_snapshot_and_replaces_identifier(tmp_path):
     assert re.search(r"revision=['\"][0-9a-f]{40}['\"]", call), call
     identifier = tmp_path / "Qwen" / "Qwen3-8B"
     assert identifier.is_symlink()
-    assert identifier.resolve() == snapshot
+    assert identifier.resolve() == Path(env["STUB_PREPARED"])
     hook = (site_packages / "sitecustomize.py").read_text()
     assert 'os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")' in hook
 
@@ -81,11 +91,11 @@ def test_setup_uses_pinned_snapshot_and_replaces_identifier(tmp_path):
     identifier.symlink_to(old_snapshot, target_is_directory=True)
     result = _run(tmp_path, env)
     assert result.returncode == 0, result.stderr
-    assert identifier.resolve() == snapshot
+    assert identifier.resolve() == Path(env["STUB_PREPARED"])
     assert not list(old_snapshot.iterdir()), "setup must not write inside the old cache"
     result = _run(tmp_path, env)
     assert result.returncode == 0, result.stderr
-    assert identifier.resolve() == snapshot
+    assert identifier.resolve() == Path(env["STUB_PREPARED"])
     assert not list(snapshot.glob("snapshot")), (
         "repeated setup must not mutate its target"
     )

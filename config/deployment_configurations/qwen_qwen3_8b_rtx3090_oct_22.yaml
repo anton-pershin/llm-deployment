@@ -1,5 +1,5 @@
-# Qwen3-8B on rtx3090-oct-22: weight-only 8-bit GPTQ diagnostic candidate.
-# The setup script pins JunHowie/Qwen3-8B-GPTQ-Int8.
+# Qwen3-8B on rtx3090-oct-22: original BF16 Q/K/V with AWQ MLP weights.
+# The setup script pins both official source checkpoints and prepares the hybrid.
 # Keep bfloat16 activations and specialize CUDA graphs for small batches.
 # Explicit greedy decoding is the default; callers can override it.
 model: Qwen/Qwen3-8B

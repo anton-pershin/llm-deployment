@@ -7,8 +7,10 @@ set -euo pipefail
 
 # The model identifier this pair is deployed under, and the weights it serves.
 MODEL_IDENTIFIER="Qwen/Qwen3-8B"
-WEIGHTS_REPO="JunHowie/Qwen3-8B-GPTQ-Int8"
-WEIGHTS_REVISION="e131f54dea2ba1f99bbee218f75548ed00646cb9"
+WEIGHTS_REPO="Qwen/Qwen3-8B-AWQ"
+WEIGHTS_REVISION="4da05a8edb55c6046cce958586c33b61da07bb79"
+ORIGINAL_REVISION="b968826d9c46dd6066d109eabc6255188de91218"
+ATTENTION_PROJECTIONS="qkv"
 
 # vLLM GPU build: the default PyPI wheels carry the CUDA runtime dependencies,
 # so no extra index is needed for this pair (unlike the CPU pair).
@@ -46,14 +48,10 @@ PYEOF
 # it before the deployment.
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 
-# Serve a symmetric weight-only 8-bit GPTQ checkpoint, group128.
-# Keep bfloat16 activation precision; the YAML specializes small-batch graphs
-# and sets an explicit greedy generation default to limit sampling divergence.
-#
-# vLLM resolves the model identifier as a local path when it exists. The
-# deployment runs from the repository root, so the symlink below keeps the
-# public pair identity and common entry point unchanged. Pin the revision for
-# repeatable setup; do not modify files in the shared HuggingFace cache.
+# Restore original Q/K/V weights and their input norm, while retaining the
+# calibrated AWQ MLP tensors and post-attention norm. No training or evaluation
+# data is used. The helper publishes the prepared checkpoint atomically.
+# vLLM still resolves the unchanged public identifier as a local path.
 SNAPSHOT="$(python3 -c "
 from huggingface_hub import snapshot_download
 print(snapshot_download('${WEIGHTS_REPO}', revision='${WEIGHTS_REVISION}'))
@@ -62,7 +60,20 @@ test -f "${SNAPSHOT}/config.json" || {
   echo "error: incomplete snapshot for ${WEIGHTS_REPO} at ${SNAPSHOT}" >&2
   exit 1
 }
+ORIGINAL="$(python3 -c "
+from huggingface_hub import snapshot_download
+print(snapshot_download('${MODEL_IDENTIFIER}', revision='${ORIGINAL_REVISION}'))
+")"
+test -f "${ORIGINAL}/config.json" || {
+  echo "error: incomplete original snapshot at ${ORIGINAL}" >&2
+  exit 1
+}
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PREPARED_DIR="${HF_HOME:-${HOME}/.cache/huggingface}/llm-deployment/qwen3-8b-${WEIGHTS_REVISION}-${ORIGINAL_REVISION}-${ATTENTION_PROJECTIONS}-v1"
+PREPARED="$(python3 "${SCRIPT_DIR}/qwen_qwen3_8b_rtx3090_oct_22.py" \
+  "${SNAPSHOT}" "${ORIGINAL}" "${PREPARED_DIR}" \
+  --attention-projections "${ATTENTION_PROJECTIONS}")"
 mkdir -p "$(dirname "${MODEL_IDENTIFIER}")"
-ln -sfnT "${SNAPSHOT}" "${MODEL_IDENTIFIER}"
+ln -sfnT "${PREPARED}" "${MODEL_IDENTIFIER}"
 
-echo "environment ready: VLLM_USE_FLASHINFER_SAMPLER=${VLLM_USE_FLASHINFER_SAMPLER} (sitecustomize.py in ${SITE_PACKAGES}); ${MODEL_IDENTIFIER} -> ${SNAPSHOT}"
+echo "environment ready: sampler=0; ${MODEL_IDENTIFIER} -> ${PREPARED}"

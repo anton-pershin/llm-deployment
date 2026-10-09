@@ -1,6 +1,6 @@
-# Qwen3-8B on rtx3090-oct-22: symmetric group32 weight-only GPTQ candidate.
-# The setup script pins ziyan1119/Qwen3-8B-250424-gptq-32g_new.
-# Runtime activations use bfloat16; floating weights were stored as float16.
+# Qwen3-8B on rtx3090-oct-22: AutoRound weight-only 4-bit GPTQ candidate.
+# The setup script pins kaitchup/Qwen3-8B-autoround-4bit-gptq.
+# This source uses float16 activations and group size 128.
 # Keep the public model identifier, context cap, and memory cap unchanged.
 # Generation defaults are those of the original model.
 model: Qwen/Qwen3-8B

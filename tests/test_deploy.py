@@ -107,7 +107,7 @@ def test_t1_rtx3090_8b_entry():
     assert entry["vllm_options"] == {
         "max_model_len": 24576,
         "gpu_memory_utilization": 0.6,
-        "dtype": "bfloat16",
+        "dtype": "float16",
         "linear_backend": "marlin",
         "max_num_seqs": 8,
         "compilation_config": '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[1,2,3,4,5,6,7,8],"compile_sizes":[1,2,3,4,5,6,7,8]}',

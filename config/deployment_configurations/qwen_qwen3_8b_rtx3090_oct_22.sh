@@ -40,6 +40,8 @@ change the vLLM options of this entry.
 import os
 
 os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
+# BF16 atomic-add is unsupported on SM86; float16 enables this Marlin path.
+os.environ.setdefault("VLLM_MARLIN_USE_ATOMIC_ADD", "1")
 PYEOF
 
 # Also export it, so that sourcing this script has the same effect as running
@@ -47,8 +49,8 @@ PYEOF
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 
 # Serve a symmetric weight-only 8-bit GPTQ checkpoint, group128.
-# Keep bfloat16 activation precision; the YAML specializes small-batch graphs
-# and sets an explicit greedy generation default to limit sampling divergence.
+# Use float16 activations and atomic-add to accelerate Marlin on SM86.
+# The YAML specializes small-batch graphs and sets an explicit greedy default.
 #
 # vLLM resolves the model identifier as a local path when it exists. The
 # deployment runs from the repository root, so the symlink below keeps the

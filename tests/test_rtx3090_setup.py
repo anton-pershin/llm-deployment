@@ -74,6 +74,7 @@ def test_setup_uses_pinned_snapshot_and_replaces_identifier(tmp_path):
     assert identifier.resolve() == snapshot
     hook = (site_packages / "sitecustomize.py").read_text()
     assert 'os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")' in hook
+    assert 'os.environ.setdefault("VLLM_MARLIN_USE_ATOMIC_ADD", "1")' in hook
 
     old_snapshot = tmp_path / "old-snapshot"
     old_snapshot.mkdir()

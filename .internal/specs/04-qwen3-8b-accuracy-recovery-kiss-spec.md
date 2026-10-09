@@ -58,15 +58,15 @@ The current merged entry uses official AWQ group size 128 and float16. The prior
 
 #### 3.3 Todo list
 
-1. [ ] Write the automated setup and selected-configuration tests.
-2. [ ] Run the new tests and confirm the intended failures.
-3. [ ] Obtain a fresh full baseline and inspect representative errors and metadata.
-4. [ ] Select and pin candidate weight-only quantized checkpoints from the original model.
-5. [ ] Implement reproducible, idempotent setup and explicit YAML options.
-6. [ ] Run the automated tests and shell syntax checks.
-7. [ ] Push exact candidate commits and run service validation sequentially; preserve results and startup evidence.
-8. [ ] Retain the best improvement that preserves AC1-AC5; run final full validation.
-9. [ ] Record full results and the measured conclusion in validation-results.md, update this spec, and obtain independent review.
+1. [x] Write the automated setup and selected-configuration tests.
+2. [x] Run the new tests and confirm the intended failures.
+3. [x] Obtain a fresh full baseline and inspect representative errors and metadata.
+4. [x] Select and pin candidate weight-only quantized checkpoints from the original model.
+5. [x] Implement reproducible, idempotent setup and explicit YAML options.
+6. [x] Run the automated tests and shell syntax checks.
+7. [x] Push exact candidate commits and run service validation sequentially; preserve results and startup evidence.
+8. [x] Retain the best improvement that preserves AC1-AC5; run final full validation.
+9. [x] Record full results and the measured conclusion in validation-results.md, update this spec, and obtain independent review.
 
 #### 3.4 Modification summary
 
@@ -84,6 +84,6 @@ The current merged entry uses official AWQ group size 128 and float16. The prior
 
 #### 3.5 Final selection
 
-Full validation of `1f1cae42efe2641ae56b14ccec033bae315a4110` accepted all six criteria. Select pinned JunHowie GPTQ8 with BF16 activations and the pinned original Qwen3-0.6B draft. Standard target rejection verifies all proposals. The draft and target need an 8192-token context to fit their combined KV cache within the memory budget. Two draft tokens require compile sizes [3,24], because size 1 is padded to 3. VM6 was 0.636433348929%, VM3 was 0.00987536141826 s, and VM5 was 13.21875 GiB. These results certify that exact candidate only. Validate the final integrated commit again and obtain independent review before delivery.
+Full validation of `1f1cae42efe2641ae56b14ccec033bae315a4110` accepted all six criteria. Select pinned JunHowie GPTQ8 with BF16 activations and the pinned original Qwen3-0.6B draft. Standard target rejection verifies all proposals. The draft and target need an 8192-token context to fit their combined KV cache within the memory budget. Two draft tokens require compile sizes [3,24], because size 1 is padded to 3. VM6 was 0.636433348929%, VM3 was 0.00987536141826 s, and VM5 was 13.21875 GiB. These results certify that exact candidate only. Full validation of final integrated commit `de029a4e598d364cec1818cd24eda50e47a6c1a6` accepted all six criteria. Independent review found no blocking issues. The complete results are in validation-results.md.
 
 The final implementation contains the single-target setup and speculative YAML. Remove the unused hybrid preparation helper and its tests from the final tree; preserve these experiments and their validation results in git history and the result document. T5 and T6 were experiment tests and are not part of the selected runtime.
